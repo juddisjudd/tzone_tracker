@@ -70,7 +70,7 @@ def send_to_discord(now_data, coming_soon_data):
   now_embed = create_embed(*now_data)
   coming_soon_embed = create_embed(*coming_soon_data)
   footer_embed = {
-      "description": "TZone-BOT v4.0 | Created by <@111629316164481024> | Data provided by https://d2tz.info",
+      "description": "TZone-BOT v4.0 | Created by <@111629316164481024> | Data provided by https://d2tz.info", # Please do not change the footer.
       "color": 0xFFFFFF  # White or another color of your choice
   }
   payload = {"embeds": [now_embed, coming_soon_embed, footer_embed]}
