@@ -1,0 +1,12 @@
+{
+    "webhooks": [
+      {
+        "name": "Discord Channel Webhook #1",
+        "url": "<replace me>"
+      },
+      {
+        "name": "Discord Channel Webhook #1",
+        "url": "<replace me>"
+      }
+    ]
+}
