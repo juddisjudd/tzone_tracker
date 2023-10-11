@@ -8,6 +8,9 @@ This script was specifically built to be ran in [replit](https://replit.com/) to
 
 Also you will need your own API token very soon to be able to use the d2tz api.
 
+## Preview
+![](https://i.imgur.com/dDT6IQg.png)
+
 ## Requirements
 - [Flask](https://github.com/pallets/flask)
 - [Requests](https://pypi.org/project/requests/)
