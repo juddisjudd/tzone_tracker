@@ -8,8 +8,6 @@ Tiers are Maxroll's tiers based purely on potential XP gain, not a tier on the z
 # Important
 This script was specifically built to be ran in [replit](https://replit.com/) to run 24/7 for free but of course can be ran elsewhere.
 
-Also you will need your own API token very soon to be able to use the d2tz api.
-
 ## Preview
 ![](https://i.imgur.com/TLwbu3W.png)
 
