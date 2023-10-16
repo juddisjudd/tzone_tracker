@@ -25,89 +25,117 @@ def load_webhook_urls():
 
 webhook_urls = load_webhook_urls()
 
+def load_debug_webhook_url():
+    with open("webhooks.json", "r") as file:
+        return json.load(file).get("debug_webhook")
+
+debug_webhook_url = load_debug_webhook_url()
+
 def fetch_terror_zone_data():
-  url = 'https://api.d2tz.info/terror_zone'
-  response = requests.get(url)
-  if response.status_code == 200:
-    data = response.json().get('data', [])
-    latest_zone = data[0]['zone']
-    zone_name_latest = zone_mapping.get(latest_zone, f"Zone {latest_zone}")
-    timestamp_latest = datetime.fromtimestamp(
-        data[0]['time']).strftime('%m/%d/%Y, %I:%M:%S %p')
-    status_latest = "Coming soon"
+    url = 'https://www.d2emu.com/api/v1/tz'
+    response = requests.get(url)
+    if response.status_code == 200:
+        data = response.json()
 
-    current_zone = data[1]['zone']
-    zone_name_current = zone_mapping.get(current_zone, f"Zone {current_zone}")
-    timestamp_current = datetime.fromtimestamp(
-        data[1]['time']).strftime('%m/%d/%Y, %I:%M:%S %p')
-    status_current = "Now"
+        def get_zone_data_from_ids(ids_list):
+            for zone_id in ids_list:
+                zone_data = zone_mapping.get(zone_id)
+                if zone_data:
+                    return zone_data
+            return {"location": f"Zone {ids_list[0]}"}
 
-    return (zone_name_latest, status_latest,
-            timestamp_latest), (zone_name_current, status_current,
-                                timestamp_current)
-  else:
-    return None, None
+        current_zone_data = get_zone_data_from_ids(data['current'])
+        next_zone_data = get_zone_data_from_ids(data['next'])
 
+        zone_name_current = current_zone_data.get("location")
+        image_url_current = current_zone_data.get("image", "")
+        status_current = "Current"
+        timestamp_current = datetime.now().strftime('%m/%d/%Y, %I:%M:%S %p')
 
-def create_embed(zone_name, status, timestamp):
-  if status == "Now":
-    title = "Current Terror Zone"
-  else:
-    title = "Next Terror Zone"
+        zone_name_next = next_zone_data.get("location")
+        image_url_next = next_zone_data.get("image", "")
+        status_next = "Next"
+        timestamp_next = (datetime.now() + timedelta(minutes=data.get('duration', 0))).strftime('%m/%d/%Y, %I:%M:%S %p')
 
-  COLOR_NOW = 0x00FF00  # Green
-  COLOR_COMING_SOON = 0xFF0000  # Red
-  color = COLOR_NOW if status == "Now" else COLOR_COMING_SOON
-  return {
-      "title": title,
-      "color": color,
-      "image": {
-          "url": zone_name  # Here, zone_name is the image URL
-      }
-  }
+        return (zone_name_next, image_url_next, status_next, timestamp_next), (zone_name_current, image_url_current, status_current, timestamp_current)
+    else:
+        return None, None
 
-def send_to_discord(now_data, coming_soon_data):
-  now_embed = create_embed(*now_data)
-  coming_soon_embed = create_embed(*coming_soon_data)
-  footer_embed = {
-      "description": "TZone-BOT v4.0 | Created by <@111629316164481024> | Data provided by https://d2tz.info", # Please do not change the footer.
-      "color": 0xFFFFFF  # White or another color of your choice
-  }
-  payload = {"embeds": [now_embed, coming_soon_embed, footer_embed]}
-  success_all = True
-  for webhook_url in webhook_urls:
-    response = requests.post(webhook_url, json=payload)
-    if response.status_code != 204:
-      success_all = False
-  return success_all
+def create_embed(zone_name, image_url, status, timestamp):
+    if status == "Current":
+        title = "Current Terror Zone"
+    else:
+        title = "Next Terror Zone"
+
+    COLOR_CURRENT = 0x00FF00  # Green
+    COLOR_NEXT = 0xFF0000  # Red
+    color = COLOR_CURRENT if status == "Current" else COLOR_NEXT
+    return {
+        "title": title,
+        "color": color,
+        "image": {
+            "url": image_url
+        }
+    }
+
+def send_to_discord(current_data, next_data, webhook_url=None):
+    current_embed = create_embed(*current_data)
+    next_embed = create_embed(*next_data)
+    footer_embed = {
+        "description": "TZone-BOT v5.0 | Created by <@111629316164481024> | Data provided by d2emu.com", # Please do not change this.
+        "color": 0xFFFFFF
+    }
+    payload = {"embeds": [current_embed, next_embed, footer_embed]}
+    if webhook_url:
+        response = requests.post(webhook_url, json=payload)
+        return response.status_code == 204
+    else:
+        success_all = True
+        for webhook_url in webhook_urls:
+            response = requests.post(webhook_url, json=payload)
+            if response.status_code != 204:
+                success_all = False
+                print(f"[red]Failed to send message to Discord. Response: {response.content.decode()}[/red]")
+        return success_all
+
 
 def main_loop():
-    # Initialize previous_data with current data from API
-    (latest_zone_name, latest_status, latest_timestamp), (current_zone_name, current_status, current_timestamp) = fetch_terror_zone_data()
-    previous_data = (latest_zone_name, latest_status, latest_timestamp, current_zone_name, current_status, current_timestamp)
+    (next_zone_name, next_image_url, next_status, next_timestamp), (current_zone_name, current_image_url, current_status, current_timestamp) = fetch_terror_zone_data()
+    print(f"[bold green]Current Terror Zone:[/bold green] {current_zone_name}\n[bold red]Next Terror Zone:[/bold red] {next_zone_name}\n")
+    
+    send_to_discord(
+        (current_zone_name, current_image_url, current_status, current_timestamp),
+        (next_zone_name, next_image_url, next_status, next_timestamp),
+        webhook_url=debug_webhook_url
+    )
+    
+    previous_data = (next_zone_name, next_image_url, next_status, next_timestamp, current_zone_name, current_image_url, current_status, current_timestamp)
+    
+    already_sent = False
     
     while True:
         current_time = datetime.now()
-        if 0 <= current_time.minute < 5:  # If it's between XX:00 to XX:05 for every hour
-            (latest_zone_name, latest_status, latest_timestamp), (current_zone_name, current_status, current_timestamp) = fetch_terror_zone_data()
-            current_data = (latest_zone_name, latest_status, latest_timestamp,
-                            current_zone_name, current_status, current_timestamp)
+        if 0 <= current_time.minute < 5 and not already_sent:
+            time.sleep(30)  # Adding a 30-second buffer
+            (next_zone_name, next_image_url, next_status, next_timestamp), (current_zone_name, current_image_url, current_status, current_timestamp) = fetch_terror_zone_data()
             
-            if previous_data != current_data:
-                if all([current_zone_name, current_status, current_timestamp, latest_zone_name, latest_status, latest_timestamp]):
-                    success = send_to_discord(
-                        (current_zone_name, current_status, current_timestamp),
-                        (latest_zone_name, latest_status, latest_timestamp)
-                    )
+            current_data = (current_zone_name, current_image_url, current_status, current_timestamp)
+            next_data = (next_zone_name, next_image_url, next_status, next_timestamp)
+            
+            if previous_data != current_data + next_data:
+                if all(list(current_data) + list(next_data)):
+                    success = send_to_discord(current_data, next_data)
                     if success:
                         print(f"[green]Successfully sent updated data to Discord at {current_time.strftime('%I:%M %p %d-%m-%Y')}[/green]")
-                        previous_data = current_data
+                        previous_data = current_data + next_data
+                        already_sent = True
                     else:
                         print("[red]Failed to send message to Discord.[/red]")
                 else:
                     print("[red]Failed to fetch data from the API.[/red]")
-            time.sleep(30)  # Check every 30 seconds
-        else:
+            time.sleep(30)
+        elif current_time.minute >= 5:
+            already_sent = False
             next_hour = current_time.replace(minute=0, second=0) + timedelta(hours=1)
             seconds_until_next_hour = int((next_hour - current_time).total_seconds())
             print(f"[cyan]Waiting for the top of the hour. Current time: {current_time.strftime('%I:%M %p %d-%m-%Y')}[/cyan]")
