@@ -11,6 +11,8 @@ This script was specifically built to be ran in [replit](https://replit.com/) to
 ## Preview
 ![](https://i.imgur.com/TLwbu3W.png)
 
+![](https://i.imgur.com/g9P2LpR.png)
+
 ## Requirements
 - [Flask](https://github.com/pallets/flask)
 - [Requests](https://pypi.org/project/requests/)
