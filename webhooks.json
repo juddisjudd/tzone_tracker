@@ -8,5 +8,6 @@
         "name": "Discord Channel Webhook #1",
         "url": "<replace me>"
       }
-    ]
+    ],
+    "debug_webhook": "<replace me>"
 }
