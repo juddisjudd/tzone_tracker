@@ -3,8 +3,6 @@ Current &amp; Next Terror Zone Announcements in Discord.
 
 Data provided thanks to [d2emu](https://www.d2emu.com/tz)
 
-Tiers are Maxroll's tiers based purely on potential XP gain, not a tier on the zone itself.
-
 # Important
 This script was specifically built to be ran in [replit](https://replit.com/) to run 24/7 for free but of course can be ran elsewhere.
 
