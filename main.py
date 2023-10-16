@@ -104,6 +104,17 @@ def send_to_discord(current_data, next_data, webhook_url=None):
                 print(f"[red]Failed to send message to Discord. Response: {response.content.decode()}[/red]")
         return success_all
 
+def save_last_data(data):
+    with open("history.json", "w") as file:
+        json.dump(data, file)
+
+def load_last_data():
+    try:
+        with open("history.json", "r") as file:
+            return tuple(json.load(file))
+    except (FileNotFoundError, ValueError):
+        return None
+
 def main_loop():
     (next_zone_name, next_image_url, next_status, next_timestamp), (current_zone_name, current_image_url, current_status, current_timestamp) = fetch_terror_zone_data()
     print(f"[bold green]Current Terror Zone:[/bold green] {current_zone_name}\n[bold red]Next Terror Zone:[/bold red] {next_zone_name}\n")
@@ -115,6 +126,7 @@ def main_loop():
     )
 
     last_hour_data = (next_zone_name, next_image_url, next_status, next_timestamp, current_zone_name, current_image_url, current_status, current_timestamp)
+    last_saved_data = load_last_data()
     already_sent = False
 
     while True:
@@ -130,7 +142,7 @@ def main_loop():
                 time.sleep(60)
                 next_data, current_data = fetch_terror_zone_data()
 
-                if last_hour_data != (next_data + current_data):
+                if last_hour_data != (next_data + current_data) and last_saved_data != (next_data + current_data):
                     break
                 retries += 1
                 print("[yellow]Data hasn't changed from the previous hour. Retrying...[/yellow]")
@@ -140,6 +152,7 @@ def main_loop():
                 if success:
                     print(f"[green]Successfully sent updated data to Discord at {current_time.strftime('%I:%M %p %d-%m-%Y')}[/green]")
                     last_hour_data = next_data + current_data
+                    save_last_data(next_data + current_data)
                     time.sleep(120)
                 else:
                     print("[red]Failed to send message to Discord.[/red]")
