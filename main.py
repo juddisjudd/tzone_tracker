@@ -6,22 +6,28 @@ from rich.progress import track
 from datetime import datetime, timedelta
 import threading
 import time
+import warnings
+import logging
+
+log = logging.getLogger('werkzeug')
+log.setLevel(logging.ERROR)
+warnings.filterwarnings("ignore", category=UserWarning, module='flask')
 
 app = Flask(__name__)
 
 @app.route('/')
 def home():
-  return "Server is running."
+    return "Server is running."
 
 def load_zone_mappings():
-  with open("zones.json", "r") as file:
-    return json.load(file)
+    with open("zones.json", "r") as file:
+        return json.load(file)
 
 zone_mapping = load_zone_mappings()
 
 def load_webhook_urls():
-  with open("webhooks.json", "r") as file:
-    return [webhook["url"] for webhook in json.load(file)["webhooks"]]
+    with open("webhooks.json", "r") as file:
+        return [webhook["url"] for webhook in json.load(file)["webhooks"]]
 
 webhook_urls = load_webhook_urls()
 
@@ -98,42 +104,49 @@ def send_to_discord(current_data, next_data, webhook_url=None):
                 print(f"[red]Failed to send message to Discord. Response: {response.content.decode()}[/red]")
         return success_all
 
-
 def main_loop():
     (next_zone_name, next_image_url, next_status, next_timestamp), (current_zone_name, current_image_url, current_status, current_timestamp) = fetch_terror_zone_data()
     print(f"[bold green]Current Terror Zone:[/bold green] {current_zone_name}\n[bold red]Next Terror Zone:[/bold red] {next_zone_name}\n")
-    
+
     send_to_discord(
         (current_zone_name, current_image_url, current_status, current_timestamp),
         (next_zone_name, next_image_url, next_status, next_timestamp),
         webhook_url=debug_webhook_url
     )
-    
-    previous_data = (next_zone_name, next_image_url, next_status, next_timestamp, current_zone_name, current_image_url, current_status, current_timestamp)
-    
+
+    last_hour_data = (next_zone_name, next_image_url, next_status, next_timestamp, current_zone_name, current_image_url, current_status, current_timestamp)
     already_sent = False
-    
+
     while True:
         current_time = datetime.now()
         if 0 <= current_time.minute < 5 and not already_sent:
-            time.sleep(30)  # Adding a 30-second buffer
-            (next_zone_name, next_image_url, next_status, next_timestamp), (current_zone_name, current_image_url, current_status, current_timestamp) = fetch_terror_zone_data()
+            print("[cyan]Top of the hour detected! Checking for updated data...[/cyan]")
+            already_sent = True
             
-            current_data = (current_zone_name, current_image_url, current_status, current_timestamp)
-            next_data = (next_zone_name, next_image_url, next_status, next_timestamp)
-            
-            if previous_data != current_data + next_data:
-                if all(list(current_data) + list(next_data)):
-                    success = send_to_discord(current_data, next_data)
-                    if success:
-                        print(f"[green]Successfully sent updated data to Discord at {current_time.strftime('%I:%M %p %d-%m-%Y')}[/green]")
-                        previous_data = current_data + next_data
-                        already_sent = True
-                    else:
-                        print("[red]Failed to send message to Discord.[/red]")
+            retries = 0
+            max_retries = 5
+
+            while retries < max_retries:
+                time.sleep(60)
+                next_data, current_data = fetch_terror_zone_data()
+
+                if last_hour_data != (next_data + current_data):
+                    break
+                retries += 1
+                print("[yellow]Data hasn't changed from the previous hour. Retrying...[/yellow]")
+
+            if retries < max_retries:
+                success = send_to_discord(current_data, next_data)
+                if success:
+                    print(f"[green]Successfully sent updated data to Discord at {current_time.strftime('%I:%M %p %d-%m-%Y')}[/green]")
+                    last_hour_data = next_data + current_data
+                    time.sleep(120)
                 else:
-                    print("[red]Failed to fetch data from the API.[/red]")
-            time.sleep(30)
+                    print("[red]Failed to send message to Discord.[/red]")
+            else:
+                print("[red]Maximum retries reached. Data hasn't changed from the previous hour.[/red]")
+                already_sent = False
+
         elif current_time.minute >= 5:
             already_sent = False
             next_hour = current_time.replace(minute=0, second=0) + timedelta(hours=1)
@@ -146,4 +159,5 @@ thread = threading.Thread(target=main_loop)
 thread.start()
 
 if __name__ == "__main__":
+  print("[cyan]Starting the Flask server...[/cyan]")
   app.run(host='0.0.0.0', port=8080)
