@@ -94,7 +94,7 @@ def send_to_discord(current_data, next_data, webhook_url=None):
     current_embed = create_embed(*current_data)
     next_embed = create_embed(*next_data)
     footer_embed = {
-        "description": "TZone-BOT v5.0 | Created by <@111629316164481024> | Data provided by d2emu.com",  # Please do not change this.
+        "description": "TZone-BOT v5.0 | Created by <@111629316164481024> | Data provided by d2emu.com",
         "color": 0xFFFFFF
     }
     payload = {"embeds": [current_embed, next_embed, footer_embed]}
@@ -102,13 +102,13 @@ def send_to_discord(current_data, next_data, webhook_url=None):
     try:
         if webhook_url:
             response = requests.post(webhook_url, json=payload)
-            response.raise_for_status()
+            response.raise_for_status() 
             return True
         else:
             success_all = True
             for webhook_url in webhook_urls:
                 response = requests.post(webhook_url, json=payload)
-                response.raise_for_status()
+                response.raise_for_status() 
                 if response.status_code != 204:
                     success_all = False
                     print(f"[red]Failed to send message to Discord. Response: {response.content.decode()}[/red]")
@@ -134,19 +134,15 @@ def load_last_data():
         return None
 
 def main_loop():
-    # Fetch Terror Zone data
     next_data, current_data = fetch_terror_zone_data()
     print(f"[bold gold1]Fetching Terror Zone data[/bold gold1]")
 
-    # Save the fetched data to history.json
     save_last_data(next_data + current_data)
     print(f"[bold spring_green1]Save the fetched data to history.json[/bold spring_green1]")
 
-    # Print to console
     (next_zone_name, next_image_url, next_status, next_timestamp), (current_zone_name, current_image_url, current_status, current_timestamp) = next_data, current_data
     print(f"[bold cornflower_blue]Current Terror Zone:[/bold cornflower_blue] {current_zone_name}\n[bold red3]Next Terror Zone:[/bold red3] {next_zone_name}\n")
 
-    # Send the fetched data to debug webhook
     send_to_discord(
         (current_zone_name, current_image_url, current_status, current_timestamp),
         (next_zone_name, next_image_url, next_status, next_timestamp),
@@ -160,6 +156,7 @@ def main_loop():
         current_time = datetime.now()
         if 0 <= current_time.minute < 5 and not already_sent:
             print("[blue_violet]Top of the hour detected! Waiting for a few minutes before checking for updated data...[/blue_violet]")
+            
             time.sleep(180)
             
             retries = 0
@@ -189,11 +186,10 @@ def main_loop():
             next_hour = current_time.replace(minute=0, second=0) + timedelta(hours=1)
             seconds_until_next_hour = int((next_hour - current_time).total_seconds())
             
-            # Using the spinner
             console = Console()
             with console.status("[bold grey58]Waiting for the top of the hour...[/bold grey58]", spinner="dots"):
                 time.sleep(seconds_until_next_hour)
-                
+
 thread = threading.Thread(target=main_loop)
 thread.start()
 
