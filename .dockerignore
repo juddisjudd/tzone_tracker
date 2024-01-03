@@ -1,0 +1,18 @@
+# Ignore .env file containing environment variables
+.env
+
+# Ignore Python cache files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Ignore test and documentation directories
+/tests
+/docs
+
+# Ignore git directory
+.git/
+
+# Ignore all log files
+*.log

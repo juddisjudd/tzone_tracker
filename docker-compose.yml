@@ -1,0 +1,19 @@
+version: '3.8'
+services:
+  app:
+    build: .
+    volumes:
+      - .:/usr/src/app
+    environment:
+      - DEBUG_WEBHOOK=${DEBUG_WEBHOOK}
+      - WEBHOOK1=${WEBHOOK1}
+      - WEBHOOK2=${WEBHOOK2}
+      - WEBHOOK3=${WEBHOOK3}
+      - WEBHOOK4=${WEBHOOK4}
+      - WEBHOOK5=${WEBHOOK5}
+      - WEBHOOK6=${WEBHOOK6}
+      - WEBHOOK7=${WEBHOOK7}
+      - WEBHOOK8=${WEBHOOK8}
+      - WEBHOOK9=${WEBHOOK9}
+      - WEBHOOK10=${WEBHOOK10}
+    restart: unless-stopped
