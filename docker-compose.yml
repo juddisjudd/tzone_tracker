@@ -1,9 +1,10 @@
 version: '3.8'
 services:
   app:
-    build: .
+    container_name: tzonetracker
+    image: ipajudd/tzonetracker:latest
     volumes:
-      - .:/usr/src/app
+      - .:/app
     environment:
       - DEBUG_WEBHOOK=${DEBUG_WEBHOOK}
       - WEBHOOK1=${WEBHOOK1}
