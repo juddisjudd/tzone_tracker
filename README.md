@@ -4,7 +4,9 @@ Current &amp; Next Terror Zone Announcements in Discord.
 Data provided thanks to [d2emu](https://www.d2emu.com/tz)
 
 # Important
-This script was specifically built to be ran in [replit](https://replit.com/) to run 24/7 for free but of course can be ran elsewhere.
+Replit recently changed to having deployments thus killing off running bots for free essentially. Project has not been dockerized so you can run anywhere pretty easily that supports docker.
+
+I've made a docker image [available here](https://hub.docker.com/r/ipajudd/tzonetracker).
 
 ## Preview
 ![](https://i.imgur.com/TLwbu3W.png)
@@ -12,9 +14,8 @@ This script was specifically built to be ran in [replit](https://replit.com/) to
 ![](https://i.imgur.com/g9P2LpR.png)
 
 ## Requirements
-- [Flask](https://github.com/pallets/flask)
 - [Requests](https://pypi.org/project/requests/)
-- [Rich](https://github.com/Textualize/rich)
+- python-dotenv
 
 ### Notice
 This software is distributed under the terms of the GNU General Public License v3.0. You are free to use, modify, and distribute this software, provided that:
