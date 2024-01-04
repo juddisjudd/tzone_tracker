@@ -1,21 +1,58 @@
+from flask import Flask
 import requests
 import json
+from rich import print
+from rich.progress import track
+from rich.spinner import Spinner
+from rich.console import Console
+from datetime import datetime, timedelta
 import threading
 import time
+import warnings
 import logging
-import os
-from dotenv import load_dotenv  # Import the load_dotenv function
 from requests.exceptions import RequestException
-from datetime import datetime, timedelta
+import os
+from dotenv import load_dotenv 
 
 # Load environment variables from .env file
 load_dotenv()
 
-# Setup basic logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s:%(message)s')
+log = logging.getLogger('werkzeug')
+log.setLevel(logging.ERROR)
+warnings.filterwarnings("ignore", category=UserWarning, module='flask')
 
-# Global variable to control the loop
-stop_thread = False
+app = Flask(__name__)
+
+current_zone_name_global = "Initializing..."
+next_zone_name_global = "Initializing..."
+
+@app.route('/')
+def home():
+    global current_zone_name_global
+    global next_zone_name_global
+    return f"""
+    <html>
+        <head>
+            <link href="https://fonts.googleapis.com/css2?family=Inter&display=swap" rel="stylesheet">
+            <style>
+                body {{
+                    font-family: 'Inter', sans-serif;
+                    font-size: 1.5rem;
+                    text-transform: uppercase;
+                    color: #000000;
+                }}
+                .current-zone {{
+                    text-transform: uppercase;
+                }}
+            </style>
+        </head>
+        <body>
+            <span class="current-zone"><strong>Current Zone:</strong></span> {current_zone_name_global}
+            <br>
+            <span class="current-zone"><strong>Next Zone:</strong></span> {next_zone_name_global}
+        </body>
+    </html>
+    """
 
 def load_zone_mappings():
     with open("zones.json", "r") as file:
@@ -71,9 +108,9 @@ def fetch_terror_zone_data():
         timestamp_next = (datetime.now() + timedelta(minutes=data.get('duration', 0))).strftime('%m/%d/%Y, %I:%M:%S %p')
 
         return (zone_name_next, image_url_next, status_next, timestamp_next), (zone_name_current, image_url_current, status_current, timestamp_current)
-
-    except RequestException as e:
-        logging.error(f"Error fetching terror zone data: {e}")
+    
+    except RequestException:
+        print("[red]Error fetching terror zone data.[/red]")
         return None, None
 
 def create_embed(zone_name, image_url, status, timestamp):
@@ -101,76 +138,107 @@ def send_to_discord(current_data, next_data, webhook_url=None):
         "color": 0xFFFFFF
     }
     payload = {"embeds": [current_embed, next_embed, footer_embed]}
-
+    
     try:
         if webhook_url:
             response = requests.post(webhook_url, json=payload)
-            response.raise_for_status()
+            response.raise_for_status() 
             return True
         else:
             success_all = True
             for webhook_url in webhook_urls:
                 response = requests.post(webhook_url, json=payload)
-                response.raise_for_status()
+                response.raise_for_status() 
                 if response.status_code != 204:
                     success_all = False
-                    logging.error(f"Failed to send message to Discord. Response: {response.content.decode()}")
+                    print(f"[red]Failed to send message to Discord. Response: {response.content.decode()}[/red]")
             return success_all
-
+                
     except RequestException as e:
-        logging.error(f"Failed to send message to Discord. Error: {e}")
+        print(f"[red]Failed to send message to Discord. Error: {e}[/red]")
         return False
 
 def save_last_data(data):
     try:
         with open("history.json", "w") as file:
             json.dump(data, file)
-    except IOError as e:
-        logging.error(f"Error saving last data to history.json: {e}")
+    except IOError:
+        print("[red]Error saving last data to history.json.[/red]")
 
 def load_last_data():
     try:
         with open("history.json", "r") as file:
             return tuple(json.load(file))
-    except (FileNotFoundError, ValueError, IOError) as e:
-        logging.error(f"Error loading last data from history.json: {e}")
+    except (FileNotFoundError, ValueError, IOError):
+        print("[red]Error loading last data from history.json.[/red]")
         return None
 
 def main_loop():
-    global stop_thread
-    while not stop_thread:
-        # Fetch Terror Zone data
-        next_data, current_data = fetch_terror_zone_data()
-        logging.info("Fetching Terror Zone data")
+    next_data, current_data = fetch_terror_zone_data()
+    print(f"[bold gold1]Fetching Terror Zone data[/bold gold1]")
 
-        # Save the fetched data to history.json
-        save_last_data(next_data + current_data)
-        logging.info("Save the fetched data to history.json")
+    save_last_data(next_data + current_data)
+    print(f"[bold spring_green1]Save the fetched data to history.json[/bold spring_green1]")
 
-        # Print to console
-        (next_zone_name, next_image_url, next_status, next_timestamp), (current_zone_name, current_image_url, current_status, current_timestamp) = next_data, current_data
-        logging.info(f"Current Terror Zone: {current_zone_name}, Next Terror Zone: {next_zone_name}")
+    (next_zone_name, next_image_url, next_status, next_timestamp), (current_zone_name, current_image_url, current_status, current_timestamp) = next_data, current_data
+    print(f"[bold cornflower_blue]Current Terror Zone:[/bold cornflower_blue] {current_zone_name}\n[bold red3]Next Terror Zone:[/bold red3] {next_zone_name}\n")
 
-        # Send the fetched data to debug webhook
-        send_to_discord(
-            (current_zone_name, current_image_url, current_status, current_timestamp),
-            (next_zone_name, next_image_url, next_status, next_timestamp),
-            webhook_url=debug_webhook_url
-        )
+    global current_zone_name_global
+    current_zone_name_global = current_zone_name
 
-        last_saved_data = load_last_data()
-        already_sent = False
+    global next_zone_name_global
+    next_zone_name_global = next_zone_name
+
+    send_to_discord(
+        (current_zone_name, current_image_url, current_status, current_timestamp),
+        (next_zone_name, next_image_url, next_status, next_timestamp),
+        webhook_url=debug_webhook_url
+    )
+
+    last_saved_data = load_last_data()
+    already_sent = False
+
+    while True:
         current_time = datetime.now()
-        next_hour = current_time.replace(minute=0, second=0) + timedelta(hours=1)
-        seconds_until_next_hour = int((next_hour - current_time).total_seconds())
-        time.sleep(seconds_until_next_hour)
+        if 0 <= current_time.minute < 5 and not already_sent:
+            print("[blue_violet]Top of the hour detected! Waiting for a few minutes before checking for updated data...[/blue_violet]")
+            
+            time.sleep(180)
+            
+            retries = 0
+            max_retries = 5
 
-    logging.info("Thread has been stopped.")
+            next_data, current_data = fetch_terror_zone_data()
 
-# Function to stop the loop
-def stop():
-    global stop_thread
-    stop_thread = True
+            while retries < max_retries and (next_data + current_data) == last_saved_data:
+                time.sleep(60)
+                next_data, current_data = fetch_terror_zone_data()
+                retries += 1
+                print("[gold1]Data matches history. Retrying...[/gold1]")
+
+            if (next_data + current_data) != last_saved_data:
+                success = send_to_discord(current_data, next_data)
+                if success:
+                    print(f"[medium_spring_green]Successfully sent updated data to Discord at {current_time.strftime('%I:%M %p %d-%m-%Y')}[/medium_spring_green]")
+                    save_last_data(next_data + current_data)
+                    already_sent = True
+                else:
+                    print("[red]Failed to send message to Discord.[/red]")
+            else:
+                print("[red]Maximum retries reached. Data still matches history.[/red]")
+
+        else:
+            already_sent = False
+            next_hour = current_time.replace(minute=0, second=0) + timedelta(hours=1)
+            seconds_until_next_hour = int((next_hour - current_time).total_seconds())
+            
+            console = Console()
+            with console.status("[bold grey58]Waiting for the top of the hour...[/bold grey58]", spinner="dots"):
+                time.sleep(seconds_until_next_hour)
 
 thread = threading.Thread(target=main_loop)
 thread.start()
+
+if __name__ == "__main__":
+  print("[grey54]Starting the Flask server...[/grey54]")
+  app.run(host='0.0.0.0', port=6060)
